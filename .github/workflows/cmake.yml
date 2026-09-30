@@ -132,6 +132,7 @@ jobs:
         tar -xf cmake-${cmake}.tar.gz
         cd cmake-${cmake}
         if [ "${cmake}" == "2.8.12.2" ]; then
+          export CFLAGS="${CFLAGS:+${CFLAGS} }-std=gnu99"
           apt -y install patch
           patch -p1 << 'EOF'
           --- cmake-2.8.12.2-org/CMakeLists.txt	2014-01-16 17:15:07.000000000 +0000
