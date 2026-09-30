@@ -46,6 +46,14 @@ else
   PUSH_ARGS=()
 fi
 
+push_origin () {
+  if [ "${#PUSH_ARGS[@]}" -gt 0 ]; then
+    echo "Test mode: skipping remote push: git push $*"
+    return 0
+  fi
+  git push "$@"
+}
+
 UPDATED_MAINT_BRANCHES_FILE=""
 MAINT_SOURCE_REF=""
 if [ "${MAINT_ONLY:-}" = "true" ]; then
@@ -90,7 +98,7 @@ source_update () {
     git checkout "${BEFORE_COMMIT}" -- README.md
     git add -f README.md README_glew.md
     git commit --amend -m "Merge ${ORIGINAL_REPO_URL} into ${GIT_BRANCH_NAME} HEAD at $(TZ=GMT date)"
-    git push "${PUSH_ARGS[@]}" origin "${GIT_BRANCH_NAME}:${GIT_BRANCH_NAME}"
+    push_origin origin "${GIT_BRANCH_NAME}:${GIT_BRANCH_NAME}"
     PUSH_COUNT=$((PUSH_COUNT + 1))
   fi
 
@@ -114,7 +122,7 @@ source_update () {
     echo "Sources updated"
     git commit -m"Generate Sources of ${GIT_BRANCH_NAME} updated at $(TZ=GMT date)"
     echo "Push to repository"
-    git push "${PUSH_ARGS[@]}" origin "${GIT_BRANCH_NAME}:${GIT_BRANCH_NAME}"
+    push_origin origin "${GIT_BRANCH_NAME}:${GIT_BRANCH_NAME}"
     PUSH_COUNT=$((PUSH_COUNT + 1))
   else
     echo "Differences Not found"
@@ -139,7 +147,7 @@ create_maintenance_branch () {
 
   echo "Creating maintenance branch ${MAINT_BRANCH} from tag ${BASE_TAG}"
   git branch "${MAINT_BRANCH}" "${BASE_TAG}"
-  git push "${PUSH_ARGS[@]}" origin "${MAINT_BRANCH}:${MAINT_BRANCH}"
+  push_origin origin "${MAINT_BRANCH}:${MAINT_BRANCH}"
 
   # when test mode, clean up the local branch we just created
   if [ "${#PUSH_ARGS[@]}" -gt 0 ]; then
@@ -171,7 +179,7 @@ tag_maintenance_patches () {
   if [ "$(git diff --cached | wc -c)" -ne 0 ]; then
     echo "glew-cmake files updated from master, committing"
     git commit -m "Update glew-cmake files from master at $(TZ=GMT date)"
-    git push "${PUSH_ARGS[@]}" origin "${MAINT_BRANCH}:${MAINT_BRANCH}"
+    push_origin origin "${MAINT_BRANCH}:${MAINT_BRANCH}"
     BRANCH_UPDATED=1
   fi
 
@@ -204,7 +212,7 @@ tag_maintenance_patches () {
   NEW_PATCH_TAG="${BASE_TAG}-${NEXT_PATCH_NUM}"
   echo "Tagging ${MAINT_BRANCH} HEAD as ${NEW_PATCH_TAG}"
   git tag "${NEW_PATCH_TAG}"
-  git push "${PUSH_ARGS[@]}" origin "${NEW_PATCH_TAG}"
+  push_origin origin "${NEW_PATCH_TAG}"
   BRANCH_UPDATED=1
 
   # when test mode, delete local tag only (keep branch commits for build test)
@@ -248,7 +256,7 @@ import_tags () {
   NEW_VERSION_TAGS=$(diff -u <(git tag | grep glew-cmake- | sed s/glew-cmake/glew/) <(git tag | grep "glew-[0-9]") | grep ^+ | sed 1d | sed s/^+// || true)
   if [ ! "${BEFORE_TAG_COUNT}" -eq "${AFTER_TAG_COUNT}" ] || [ -n "${NEW_VERSION_TAGS}" ]; then
     echo "Tags updated"
-    git push "${PUSH_ARGS[@]}" --tags origin
+    push_origin --tags origin
 
     git checkout glew-cmake-release
     for TAG in $NEW_VERSION_TAGS
@@ -301,7 +309,7 @@ import_tags () {
       fi
     done
 
-    git push "${PUSH_ARGS[@]}" origin glew-cmake-release
+    push_origin origin glew-cmake-release
     if [ "${#PUSH_ARGS[@]}" -eq 0 ]; then
       git push --tags origin
     fi
